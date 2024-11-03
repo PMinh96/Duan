@@ -172,12 +172,56 @@ router.get('/get-product-by-name', async (req, res) => {
     console.log(error)
   }
 })
-// Thêm sản phẩm 
-router.post('/add-product', Upload.single('image'), async (req, res) => {
+// Thêm sản phẩm 1 anh
+// router.post('/add-product', Upload.single('image'), async (req, res) => {
+//   try {
+//     const data = req.body;
+//     const { file } = req
+//     const urlsImage = `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+//     const newProduct = new Product({
+//       image: urlsImage,
+//       quantity: data.quantity,
+//       price: data.price,
+//       description: data.description,
+//       product_name: data.product_name,
+//       state: data.state,
+//       id_producttype: data.id_producttype,
+//       id_suppliers: data.id_suppliers,
+//     })
+//     const result = await newProduct.save();
+//     if (result) {
+//       res.json({
+//         "status": 200,
+//         "message": "Thêm sản phẩm thành công",
+//         "data": result
+//       });
+//     } else {
+//       res.json({
+//         "status": 400,
+//         "message": "Thất bại",
+//         "data": []
+//       });
+//     }
+//   } catch (err) {
+//     console.log(err);
+//   }
+// });
+//Thêm sản phẩm nhiều ảnh
+router.post('/add-product', Upload.array('image', 5), async (req, res) => {
+  // Upload.array('image', 5) => up nhiều file tối đa là 5 abc
   try {
     const data = req.body;
-    const { file } = req
-    const urlsImage = `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+    const files = req.files;
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        "status": 400,
+        "message": "Không có file nào được tải lên"
+      });
+    }
+
+    // Tạo mảng URLs từ các file đã tải lên
+    const urlsImage = files.map((file) => `${req.protocol}://${req.get("host")}/upload/${file.filename}`);
+
     const newProduct = new Product({
       image: urlsImage,
       quantity: data.quantity,
@@ -187,7 +231,8 @@ router.post('/add-product', Upload.single('image'), async (req, res) => {
       state: data.state,
       id_producttype: data.id_producttype,
       id_suppliers: data.id_suppliers,
-    })
+    });
+
     const result = await newProduct.save();
     if (result) {
       res.json({
@@ -196,7 +241,7 @@ router.post('/add-product', Upload.single('image'), async (req, res) => {
         "data": result
       });
     } else {
-      res.json({
+      res.status(400).json({
         "status": 400,
         "message": "Thất bại",
         "data": []
@@ -204,6 +249,11 @@ router.post('/add-product', Upload.single('image'), async (req, res) => {
     }
   } catch (err) {
     console.log(err);
+    res.status(500).json({
+      "status": 500,
+      "message": "Lỗi máy chủ",
+      "error": err.message
+    });
   }
 });
 
