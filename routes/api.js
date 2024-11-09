@@ -2,6 +2,8 @@ var express = require('express');
 var router = express.Router();
 
 //Thêm model
+
+
 const Product = require("../models/product");
 const Suppliers = require("../models/suppliers");
 const Upload = require('../config/common/upload')
@@ -12,7 +14,9 @@ const Cart = require('../models/cart')
 const Order = require('../models/order')
 const Typeproducts = require('../models/typeproducts')
 const Typevouchers = require('../models/typevouchers')
-const Vouchers = require('../models/vouchers')
+const Vouchers = require('../models/vouchers');
+const suppliers = require('../models/suppliers');
+const typeproducts = require('../models/typeproducts');
 //Thêm nhà cung cấp
 router.post('/add-supplier', Upload.single('image'), async (req, res) => {
   try {
@@ -248,17 +252,18 @@ router.post('/add-product', Upload.array('image', 5), async (req, res) => {
       });
     }
   } catch (err) {
-    console.log(err);
+    console.log(err.stack);
     res.status(500).json({
       "status": 500,
       "message": "Lỗi máy chủ",
-      "error": err.message
+      "error": err.message,
+      "stack": err.stack
     });
   }
 });
 
 //sửa sản phẩm
-router.put('/update-product/:id', Upload.single('image'), async (req, res) => {
+router.put('/update-product/:id', Upload.array('image',5), async (req, res) => {
   try {
     const productId = req.params.id;
     const data = req.body;
@@ -1293,5 +1298,59 @@ router.post('/create-invoice', async (req, res) => {
     });
   }
 });
+// Lấy thông tin chi tiết của nhà cung cấp theo ID
+router.get('/suppliers/:id', async (req, res) => {
+  try {
+    const supplierId = req.params.id;
+    const supplier = await suppliers.findById(supplierId);
 
+    if (!supplier) {
+      return res.status(404).json({
+        "status": 404,
+        "message": "Nhà cung cấp không tồn tại"
+      });
+    }
+
+    res.json({
+      "status": 200,
+      "message": "Lấy thông tin nhà cung cấp thành công",
+      "data": supplier
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      "status": 500,
+      "message": "Lỗi server",
+    });
+  }
+});
+// Lấy thông tin chi tiết của loại sản phẩm theo ID
+router.get('/typeproduct/:id', async (req, res) => {
+  try {
+    const typeProductId = req.params.id;
+    const typeProduct = await Typeproducts.findById(typeProductId).populate({
+      path: 'id_size',
+      select: 'name'
+    });
+
+    if (!typeProduct) {
+      return res.status(404).json({
+        "status": 404,
+        "message": "Loại sản phẩm không tồn tại"
+      });
+    }
+
+    res.json({
+      "status": 200,
+      "message": "Lấy thông tin loại sản phẩm thành công",
+      "data": typeProduct
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      "status": 500,
+      "message": "Lỗi server",
+    });
+  }
+});
 module.exports = router;
