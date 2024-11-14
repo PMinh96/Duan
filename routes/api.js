@@ -222,10 +222,24 @@ router.post('/add-product', Upload.array('image', 5), async (req, res) => {
         "message": "Không có file nào được tải lên"
       });
     }
-
+    
     // Tạo mảng URLs từ các file đã tải lên
     const urlsImage = files.map((file) => `${req.protocol}://${req.get("host")}/upload/${file.filename}`);
-
+    
+    let sizeQuantities = [];
+        if (data.sizeQuantities) {
+            try {
+                sizeQuantities = JSON.parse(data.sizeQuantities).map((sizeQuantity) => ({
+                    sizeId: sizeQuantity.sizeId,
+                    quantity: sizeQuantity.quantity
+                }));
+            } catch (error) {
+                return res.status(400).json({
+                    status: 400,
+                    message: "Định dạng sizeQuantities không hợp lệ"
+                });
+            }
+        }
     const newProduct = new Product({
       image: urlsImage,
       quantity: data.quantity,
@@ -235,6 +249,7 @@ router.post('/add-product', Upload.array('image', 5), async (req, res) => {
       state: data.state,
       id_producttype: data.id_producttype,
       id_suppliers: data.id_suppliers,
+      sizeQuantities: sizeQuantities,
     });
 
     const result = await newProduct.save();

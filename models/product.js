@@ -10,6 +10,13 @@ const Product=new Scheme({
     state:{type:Boolean},
     id_suppliers:{type:Scheme.Types.ObjectId,ref:'suppliers'},
     id_producttype:{type:Scheme.Types.ObjectId,ref:'typeproducts'},
+    sizeQuantities: [
+        {
+            sizeId: { type: Scheme.Types.ObjectId, ref: 'sizes', required: true },
+            quantity: { type: Number, required: true }
+        }
+    ]
+    
 },{
     timestamps:true,
 })
