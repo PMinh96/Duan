@@ -278,28 +278,28 @@ router.post('/add-product', Upload.array('image', 5), async (req, res) => {
 });
 
 //sửa sản phẩm
-router.put('/update-product/:id', Upload.array('image',5), async (req, res) => {
+router.put('/update-product/:id', Upload.array('image', 5), async (req, res) => {
   try {
     const productId = req.params.id;
     const data = req.body;
-    const { file } = req;
+    const files = req.files;
 
-    // Lấy thông tin nhà cung cấp hiện tại từ DB theo id
+    // Tìm sản phẩm theo ID
     const product = await Product.findById(productId);
     if (!product) {
-      return res.json({
-        "status": 404,
-        "message": "Nhà cung cấp không tồn tại"
+      return res.status(404).json({
+        status: 404,
+        message: "Sản phẩm không tồn tại"
       });
     }
 
-    // Nếu có file ảnh mới thì cập nhật, không thì giữ ảnh cũ
-    let urlsImage = product.image; // Giữ ảnh cũ nếu không có ảnh mới
-    if (file) {
-      urlsImage = `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+    // Nếu có file ảnh mới thì cập nhật
+    let urlsImage = product.image || []; // Lấy ảnh cũ
+    if (files && files.length > 0) {
+      urlsImage = files.map(file => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`);
     }
 
-    // Cập nhật các trường của sản phẩm
+    // Cập nhật các trường
     product.product_name = data.product_name || product.product_name;
     product.price = data.price || product.price;
     product.state = data.state || product.state;
@@ -309,25 +309,31 @@ router.put('/update-product/:id', Upload.array('image',5), async (req, res) => {
     product.id_producttype = data.id_producttype || product.id_producttype;
     product.id_suppliers = data.id_suppliers || product.id_suppliers;
 
-    const result = await product.save();
-    if (result) {
-      res.json({
-        "status": 200,
-        "message": "Cập nhật sản phẩm thành công",
-        "data": result
-      });
-    } else {
-      res.json({
-        "status": 400,
-        "message": "Cập nhật thất bại",
-        "data": []
-      });
+    // Cập nhật sizeQuantities nếu có
+    if (data.sizeQuantities) {
+      try {
+        product.sizeQuantities = JSON.parse(data.sizeQuantities);
+      } catch (err) {
+        return res.status(400).json({
+          status: 400,
+          message: "sizeQuantities không đúng định dạng JSON"
+        });
+      }
     }
+
+    // Lưu thay đổi
+    const result = await product.save();
+    res.json({
+      status: 200,
+      message: "Cập nhật sản phẩm thành công",
+      data: result
+    });
+
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      "status": 500,
-      "message": "Lỗi server",
+      status: 500,
+      message: "Lỗi server",
     });
   }
 });
@@ -354,6 +360,27 @@ router.get('/prodct', async (req, res) => {
       "status": 500,
       "message": "Lỗi server"
     });
+  }
+});
+// lấy thông tin sản phẩm theo ID
+router.get('/get_product/:id', async (req, res) => {
+  try {
+      const product = await Product.findById(req.params.id)
+          .populate('id_suppliers', 'name')  
+          .populate('id_producttype', 'name') 
+          .populate({
+              path: 'sizeQuantities.sizeId',  // Populate sizeId trong sizeQuantities
+              select: 'name'  // Chỉ lấy trường name của size
+          });
+
+      if (!product) {
+          return res.status(404).json({ message: 'Product not found' });
+      }
+
+      res.json(product);
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
   }
 });
 
