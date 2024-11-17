@@ -13,10 +13,8 @@ const Favourite = require('../models/favourite')
 const Cart = require('../models/cart')
 const Order = require('../models/order')
 const Typeproducts = require('../models/typeproducts')
-const Typevouchers = require('../models/typevouchers')
 const Vouchers = require('../models/vouchers');
 const suppliers = require('../models/suppliers');
-const typeproducts = require('../models/typeproducts');
 //Thêm nhà cung cấp
 router.post('/add-supplier', Upload.single('image'), async (req, res) => {
   try {
@@ -572,54 +570,6 @@ router.put('/update-typeproduct/:id', Upload.single('image'), async (req, res) =
     });
   }
 });
-
-//**loại voucher */
-//thêm loại voucher
-router.post('/add-typevoucher', async (req, res) => {
-  try {
-    const data = req.body;
-    const newTypevouchers = new Typevouchers({
-      name: data.name
-    });
-    const result = await newTypevouchers.save();
-    if (result) {
-      res.json({
-        status: 200,
-        messenger: "Thêm vouvher thành công",
-        data: result
-      });
-    } else {
-      res.json({
-        "status": 400,
-        "messenger": "Thất bại",
-        "data": []
-      });
-    }
-  } catch (error) {
-    console.error(error);
-  }
-});
-//danh sách loại voucher
-router.get("/get-list-typevoucher", async (req, res) => {
-  try {
-    const data = await Typevouchers.find().sort({ createdAt: -1 });
-    if (data) {
-      res.json({
-        status: 200,
-        messenger: "Lấy danh sách thành công",
-        data: data,
-      });
-    } else {
-      res.json({
-        status: 400,
-        messenger: "lấy danh sách thất bại",
-        data: [],
-      });
-    }
-  } catch (error) {
-    console.log(error);
-  }
-});
 //**voucher */
 // thêm voucher
 router.post('/add-voucher', Upload.single('image'), async (req, res) => {
@@ -631,14 +581,12 @@ router.post('/add-voucher', Upload.single('image'), async (req, res) => {
     const newVouchers = new Vouchers({
       name: data.name,
       image: urlsImage,
-      pricevoucher: data.pricevoucher,  // Giá trị của voucher
       description: data.description,  // Mô tả về voucher
       discountValue: data.discountValue,  // Giá trị giảm giá
       discountType: data.discountType,  // Loại giảm giá (percent hoặc fixed)
       validFrom: data.validFrom,  // Ngày bắt đầu hiệu lực
       validUntil: data.validUntil,  // Ngày hết hạn
       minimumOrderValue: data.minimumOrderValue,// Giá tối thiểu
-      id_type: data.id_type
     })
     const result = await newVouchers.save();
     if (result) {
@@ -708,14 +656,12 @@ router.put('/update-voucher/:id', Upload.single('image'), async (req, res) => {
       {
         name: data.name,
         image: urlsImage,
-        pricevoucher: data.pricevoucher,
         description: data.description,
         discountValue: data.discountValue,
         discountType: data.discountType,
         validFrom: data.validFrom,
         validUntil: data.validUntil,
         minimumOrderValue: data.minimumOrderValue,
-        id_type: data.id_type,
       },
       { new: true }
     );
