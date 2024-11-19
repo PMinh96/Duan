@@ -904,86 +904,92 @@ const getDiscountValue = async (voucherId, totalPrice) => {
 * - productId: ID của sản phẩm
 * - quantity: Số lượng sản phẩm
 */
+// Route thêm sản phẩm vào giỏ hàng
 router.post("/add-to-cart", async (req, res) => {
-  const { userId, productId, quantity } = req.body;
-
-  // Kiểm tra xem các trường cần thiết có trong request body hay không
-  if (!userId || !productId || !quantity) {
+    const { userId, productId, quantity, sizeId } = req.body;
+  
+    // Kiểm tra xem các trường cần thiết có trong request body hay không
+    if (!userId || !productId || !quantity || !sizeId) {
       return res.status(400).json({ message: 'Missing required fields' });
-  }
-
-  try {
+    }
+  
+    try {
       // Tìm giỏ hàng của người dùng
       let cart = await Cart.findOne({ userId });
       if (cart) {
-          // Tìm sản phẩm trong giỏ hàng
-          const productIndex = cart.products.findIndex(p => p.productId.toString() === productId);
-          if (productIndex !== -1) {
-              // Tăng số lượng nếu sản phẩm đã tồn tại trong giỏ hàng
-              cart.products[productIndex].quantity += quantity;
-          } else {
-              // Thêm sản phẩm mới vào giỏ hàng nếu sản phẩm chưa có trong giỏ hàng
-              cart.products.push({ productId, quantity, isSelected:false });
-          }
+        // Tìm sản phẩm trong giỏ hàng và kiểm tra sizeId
+        const productIndex = cart.products.findIndex(p => p.productId.toString() === productId && p.sizeId.toString() === sizeId);
+        if (productIndex !== -1) {
+          // Tăng số lượng nếu sản phẩm đã tồn tại trong giỏ hàng và có cùng sizeId
+          cart.products[productIndex].quantity += quantity;
+        } else {
+          // Thêm sản phẩm mới vào giỏ hàng nếu sản phẩm chưa có trong giỏ hàng
+          cart.products.push({ productId, quantity, isSelected: false, sizeId });
+        }
       } else {
-          // Tạo giỏ hàng mới nếu người dùng chưa có giỏ hàng
-          cart = new Cart({
-              userId,
-              products: [{ productId, quantity, isSelected:false }]
-          });
+        // Tạo giỏ hàng mới nếu người dùng chưa có giỏ hàng
+        cart = new Cart({
+          userId,
+          products: [{ productId, quantity, isSelected: false, sizeId }]
+        });
       }
+  
       // Tính lại tổng giá trị của giỏ hàng
       cart.totalPrice = await calculateTotalPrice(cart.products.filter(item => item.isSelected));
+  
       // Lưu giỏ hàng
       const result = await cart.save();
+  
       // Trả về phản hồi thành công
       res.status(200).json({
-          status: 200,
-          message: "Product added to cart successfully",
-          data: result
+        status: 200,
+        message: "Product added to cart successfully",
+        data: result
       });
-  } catch (err) {
+    } catch (err) {
       // Trả về lỗi nếu có lỗi xảy ra
       res.status(500).json({ message: err.message });
-  }
-});
+    }
+  });
+  
 // Route chọn sản phẩm trong giỏ hàng
 router.post("/select-products", async (req, res) => {
-  const { userId, selectedProductIds } = req.body; // selectedProductIds là mảng ID sản phẩm được chọn
-
-  if (!userId || !Array.isArray(selectedProductIds) || selectedProductIds.length === 0) {
-      return res.status(400).json({ message: 'Missing required fields' });
-  }
-
-  try {
-      const cart = await Cart.findOne({ userId });
-      if (!cart) {
-          return res.status(404).json({ message: 'Cart not found' });
-      }
-
-      // Cập nhật trạng thái sản phẩm được chọn
-      cart.products.forEach(product => {
-        // Kiểm tra xem sản phẩm có trong danh sách được chọn không
-        if (selectedProductIds.includes(product.productId.toString())) {
-            // Đổi trạng thái thành true nếu đang false, và ngược lại
-            product.isSelected = !product.isSelected;
+    const { userId, selectedProductIds } = req.body;
+  
+    if (!userId || !Array.isArray(selectedProductIds) || selectedProductIds.length === 0) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+  
+    try {
+        const cart = await Cart.findOne({ userId });
+        if (!cart) {
+            return res.status(404).json({ message: 'Cart not found' });
         }
-    });
-          
-      // Tính lại tổng giá trị giỏ hàng dựa trên các sản phẩm đã chọn
-      cart.totalPrice = await calculateTotalPrice(cart.products.filter(item => item.isSelected ));
-
-      await cart.save();
-
-      res.status(200).json({
-          status: 200,
-          message: "Selected products updated successfully",
-          data: cart
-      });
-  } catch (err) {
-      res.status(500).json({ message: err.message });
-  }
-});
+  
+        // Cập nhật trạng thái sản phẩm được chọn
+        cart.products.forEach(product => {
+            if (selectedProductIds.includes(product.productId.toString())) {
+                product.isSelected = true;  // Đặt trạng thái là true khi sản phẩm được chọn
+            } else {
+                product.isSelected = false; // Đặt lại trạng thái là false nếu sản phẩm không được chọn
+            }
+        });
+  
+        // Tính lại tổng giá trị giỏ hàng dựa trên các sản phẩm đã chọn
+        cart.totalPrice = await calculateTotalPrice(cart.products.filter(item => item.isSelected));
+  
+        await cart.save();
+  
+        res.status(200).json({
+            status: 200,
+            message: "Selected products updated successfully",
+            data: cart
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+  });
+  
 
 // Route chọn voucher trong giỏ hàng
 router.post("/select-voucher", async (req, res) => {
@@ -1025,31 +1031,36 @@ router.post("/select-voucher", async (req, res) => {
 
 
 // Route lấy danh sách sản phẩm trong giỏ hàng của người dùng
+// Route lấy danh sách sản phẩm trong giỏ hàng của người dùng
 router.get("/get-cart/:userId", async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-      const cart = await Cart.findOne({ userId }).populate('products.productId', 'name price image');
-
+    const { userId } = req.params;
+  
+    try {
+      // Tìm giỏ hàng của người dùng và populate thông tin sản phẩm và size
+      const cart = await Cart.findOne({ userId })
+        .populate('products.productId', 'product_name price image') // Lấy thông tin sản phẩm
+        .populate('products.sizeId', 'name'); // Lấy thông tin size từ bảng Size
+  
       if (!cart) {
-          return res.status(404).json({ message: 'Cart not found' });
+        return res.status(404).json({ message: 'Cart not found' });
       }
-
+  
       // Trả về danh sách sản phẩm trong giỏ hàng
       res.status(200).json({
-          status: 200,
-          message: "Get cart successfully",
-          data: {
-              userId: cart.userId,
-              products: cart.products,
-              voucher: cart.voucher,
-              totalPrice: cart.totalPrice
-          }
+        status: 200,
+        message: "Get cart successfully",
+        data: {
+          userId: cart.userId,
+          products: cart.products,  // Lấy tất cả sản phẩm và hiển thị thông tin size
+          voucher: cart.voucher,
+          totalPrice: cart.totalPrice
+        }
       });
-  } catch (err) {
+    } catch (err) {
       res.status(500).json({ message: err.message });
-  }
-});
+    }
+  });
+  
 router.delete("/remove-product", async (req, res) => {
   const { userId, productId } = req.body; // userId: ID của người dùng, productId: ID sản phẩm cần xóa
 
