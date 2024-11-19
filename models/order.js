@@ -11,11 +11,6 @@ const Order = new Scheme({
         ref: 'cart', // Liên kết với giỏ hàng (Cart)
         required: true
     },
-    id_voucher: {
-        type: Scheme.Types.ObjectId,
-        ref: 'vouchers', // Liên kết với voucher (nếu có)
-        default: null
-    },
     state: {
         type: Number,
         default: 0 // Trạng thái của đơn hàng: 0 = Chưa xử lý, 1 = Đã thanh toán, 2 = Hoàn thành
