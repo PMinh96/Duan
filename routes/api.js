@@ -745,7 +745,7 @@ router.post('/add-favourite', async (req, res) => {
 
 
 // xoá danh sách yêu thích
-router.delete("/remove-favourite", async (req, res) => {
+router.post("/remove-favourite", async (req, res) => {
   const { userId, productId } = req.body; // userId: ID người dùng, productId: ID sản phẩm cần xóa
 
   // Kiểm tra thông tin đầu vào
