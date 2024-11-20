@@ -2,10 +2,12 @@ const mongoose =require('mongoose');
 const Scheme =mongoose.Schema;
 
 const Favourite =new Scheme({
-    // userId: { type: String, required: true }, // userId từ Firebase
-    name:{type:String },
-    id_client:{type:String,require: true},
-    id_product:{type:Scheme.Types.ObjectId,ref:'product'},
+    userId: { type: String, required: true },
+    products: [
+        {
+            productId: { type: Scheme.Types.ObjectId, ref: 'product', required: true },   
+        }
+    ],
 },{
     timestamps:true,
 })
