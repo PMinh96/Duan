@@ -786,45 +786,29 @@ router.delete("/remove-favourite", async (req, res) => {
   }
 });
 
-
 //lấy danh sách yêu thích
-router.get('/favourite', async (req, res) => {
+router.get("/get-favourite/:userId", async (req, res) => {
+  const { userId } = req.params;
+
   try {
-    const { userId } = req.query; // Lấy userId từ query parameter
-
-    // Kiểm tra nếu không có userId được gửi lên
-    if (!userId) {
-      return res.status(400).json({
-        status: 400,
-        message: "Thiếu userId",
-      });
+    // Tìm danh sách yêu thích của người dùng và populate thông tin sản phẩm và size
+    const favourite = await Favourite.findOne({ userId })
+      .populate('products.productId', 'product_name price image') // Lấy thông tin sản phẩm
+    if (!favourite) {
+      return res.status(404).json({ message: 'Favourite list not found' });
     }
 
-    // Tìm danh sách yêu thích theo userId
-    const favouriteList = await Favourite.findOne({ userId })
-      .populate('products.productId') // Populate để lấy thông tin chi tiết sản phẩm
-      .sort({ createdAt: -1 });
-
-    // Kiểm tra nếu danh sách yêu thích tồn tại hoặc không
-    if (favouriteList && favouriteList.products.length > 0) {
-      res.json({
-        status: 200,
-        message: "Lấy danh sách yêu thích thành công",
-        data: favouriteList,
-      });
-    } else {
-      res.json({
-        status: 404,
-        message: "Không có sản phẩm yêu thích nào",
-        data: [],
-      });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      status: 500,
-      message: "Lỗi server",
+    // Trả về danh sách sản phẩm yêu thích
+    res.status(200).json({
+      status: 200,
+      message: "Get favourite successfully",
+      data: {
+        userId: favourite.userId,
+        products: favourite.products,  // Lấy tất cả sản phẩm yêu thích và hiển thị thông tin size
+      }
     });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
