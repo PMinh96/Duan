@@ -2,8 +2,6 @@ var express = require('express');
 var router = express.Router();
 
 //Thêm model
-
-
 const Product = require("../models/product");
 const Suppliers = require("../models/suppliers");
 const Upload = require('../config/common/upload')
@@ -1236,7 +1234,6 @@ router.post('/add-order', async (req, res) => {
       const newOrder = new Order({
           id_client: data.id_client,
           id_cart: cart._id,
-          id_voucher: cart.voucher || null,
           state: 0, // Mặc định là chưa xử lý
           payment_method: data.payment_method,
           total_amount: totalAmount,
@@ -1258,7 +1255,7 @@ router.post('/add-order', async (req, res) => {
       });
   }
 });
-//Cập nhật đơn hàng
+
 // Cập nhật đơn hàng
 router.put('/update-order/:id', async (req, res) => {
   try {
@@ -1277,7 +1274,6 @@ router.put('/update-order/:id', async (req, res) => {
     // Cập nhật các trường của đơn hàng, nếu có trong request body
     order.id_client = data.id_client || order.id_client;
     order.id_cart = data.id_cart || order.id_cart; // Giữ id_cart hoặc cập nhật nếu có
-    order.id_voucher = data.id_voucher || order.id_voucher; // Giữ id_voucher hoặc cập nhật nếu có
     order.state = data.state !== undefined ? data.state : order.state; // Cập nhật state nếu có
     order.payment_method = data.payment_method || order.payment_method;
     order.total_amount = data.total_amount || order.total_amount; // Tổng số tiền có thể được cập nhật nếu cần
@@ -1309,50 +1305,50 @@ router.put('/update-order/:id', async (req, res) => {
   }
 });
 //lấy danh sách đơn hàng
-router.get('/order', async (req, res) => {
+router.get('/orders', async (req, res) => {
   try {
-    const { clientId } = req.query; // Lấy clientId từ query parameter
-
-    // Kiểm tra nếu không có clientId được gửi lên
+    const { clientId, state } = req.query; // Lấy clientId và state từ query parameter
+    // Kiểm tra nếu thiếu clientId hoặc state
     if (!clientId) {
-      return res.status(400).json({
-        "status": 400,
-        "message": "Thiếu clientId"
-      });
+      return res.status(400).json({ status: 400, message: "Thiếu clientId" });
     }
-
-    // Tìm kiếm danh sách đơn hàng theo clientId
-    const orderList = await Order.find({ id_client: clientId })
+    if (state === undefined) {
+      return res.status(400).json({ status: 400, message: "Thiếu state" });
+    }
+    // Tìm kiếm danh sách đơn hàng theo clientId và state
+    const orderList = await Order.find({ id_client: clientId, state: parseInt(state) })
       .populate({
-        path: 'id_cart', 
+        path: 'id_cart',
         populate: {
-          path: 'products.productId', // Populate để lấy thông tin sản phẩm từ giỏ hàng
-          model: 'product' // Lấy thông tin từ bảng Product
+          path: 'products.productId',
+          model: 'product' // Populate thông tin sản phẩm từ bảng Product
         }
       })
-      .sort({ createdAt: -1 });
-
+      .sort({ createdAt: -1 }); // Sắp xếp theo thời gian tạo mới nhất
+    // Trả về kết quả
     if (orderList.length > 0) {
       res.json({
-        "status": 200,
-        "message": "Lấy danh sách đơn hàng thành công",
-        "data": orderList
+        status: 200,
+        message: "Lấy danh sách đơn hàng thành công",
+        data: orderList
       });
     } else {
       res.json({
-        "status": 404,
-        "message": "Không có đơn hàng nào",
-        "data": []
+        status: 404,
+        message: "Không có đơn hàng nào phù hợp",
+        data: []
       });
     }
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      "status": 500,
-      "message": "Lỗi server"
+      status: 500,
+      message: "Lỗi server",
+      error: err.message
     });
   }
 });
+
 router.get('/revenue-statistics', async (req, res) => {
   try {
     // Lấy danh sách đơn hàng đã hoàn thành (state = 1 có thể là đã hoàn thành)
