@@ -13,7 +13,8 @@ const Order = new Scheme({
     },
     state: {
         type: Number,
-        default: 0 // Trạng thái của đơn hàng: 0 = Chưa xử lý, 1 = Đã thanh toán, 2 = Hoàn thành
+        enum: [0, 1, 2], // 0 = Chờ xử lý, 1 = Đã thanh toán, 2 = hủy
+        default: 0 ,
     },
     payment_method: {
         type: String,

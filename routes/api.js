@@ -1188,16 +1188,19 @@ router.put('/update-order/:id', async (req, res) => {
 //lấy danh sách đơn hàng
 router.get('/orders', async (req, res) => {
   try {
-    const { clientId, state } = req.query; // Lấy clientId và state từ query parameter
-    // Kiểm tra nếu thiếu clientId hoặc state
+    const { clientId, state } = req.query;
+
+    // Kiểm tra nếu thiếu clientId hoặc state không hợp lệ
     if (!clientId) {
       return res.status(400).json({ status: 400, message: "Thiếu clientId" });
     }
-    if (state === undefined) {
-      return res.status(400).json({ status: 400, message: "Thiếu state" });
+    const parsedState = parseInt(state);
+    if (isNaN(parsedState)) {
+      return res.status(400).json({ status: 400, message: "State không hợp lệ" });
     }
+
     // Tìm kiếm danh sách đơn hàng theo clientId và state
-    const orderList = await Order.find({ id_client: clientId, state: parseInt(state) })
+    const orderList = await Order.find({ id_client: clientId, state: parsedState })
       .populate({
         path: 'id_cart',
         populate: {
@@ -1206,20 +1209,16 @@ router.get('/orders', async (req, res) => {
         }
       })
       .sort({ createdAt: -1 }); // Sắp xếp theo thời gian tạo mới nhất
+
     // Trả về kết quả
-    if (orderList.length > 0) {
-      res.json({
-        status: 200,
-        message: "Lấy danh sách đơn hàng thành công",
-        data: orderList
-      });
-    } else {
-      res.json({
-        status: 404,
-        message: "Không có đơn hàng nào phù hợp",
-        data: []
-      });
-    }
+    res.status(200).json({
+      status: 200,
+      message: orderList.length > 0 
+        ? "Lấy danh sách đơn hàng thành công" 
+        : "Không có đơn hàng nào phù hợp",
+      data: orderList
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({
@@ -1229,6 +1228,7 @@ router.get('/orders', async (req, res) => {
     });
   }
 });
+
 
 router.get('/revenue-statistics', async (req, res) => {
   try {
