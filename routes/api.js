@@ -1324,7 +1324,16 @@ router.get('/orders', async (req, res) => {
         path: 'id_cart',
         populate: {
           path: 'products.productId',
-          model: 'product' // Populate thông tin sản phẩm từ bảng Product
+          model: 'product',
+          select: 'image product_name price'
+        }
+      })
+      .populate({
+        path:'id_cart',
+        populate: {
+          path: 'products.sizeId',
+          model: 'sizes',
+          select: 'name'
         }
       })
       .sort({ createdAt: -1 }); // Sắp xếp theo thời gian tạo mới nhất
@@ -1347,8 +1356,6 @@ router.get('/orders', async (req, res) => {
     });
   }
 });
-
-
 router.get('/revenue-statistics', async (req, res) => {
   try {
     // Lấy danh sách đơn hàng đã hoàn thành (state = 1 có thể là đã hoàn thành)
