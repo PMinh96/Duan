@@ -1,6 +1,5 @@
 var express = require('express');
 var router = express.Router();
-
 //Thêm model
 const Product = require("../models/product");
 const Suppliers = require("../models/suppliers");
@@ -1242,41 +1241,70 @@ router.delete("/remove-product", async (req, res) => {
 //Thêm đơn hàng
 router.post('/add-order', async (req, res) => {
   try {
-    const data = req.body;
+    const { id_client, payment_method, products } = req.body;
 
-    // Tìm giỏ hàng dựa trên id_cart
-    const cart = await Cart.findById(data.id_cart);
-    if (!cart) {
-      return res.status(404).json({ message: "Giỏ hàng không tồn tại" });
+    // Kiểm tra dữ liệu đầu vào
+    if (!id_client || !payment_method || !products || products.length === 0) {
+      return res.status(400).json({
+        message: "Thiếu dữ liệu cần thiết: id_client, payment_method, hoặc danh sách sản phẩm",
+      });
     }
 
-    // Tính tổng giá trị đơn hàng từ giỏ hàng
-    const totalAmount = cart.totalPrice;
+    const normalizedProducts = products.map((product) => ({
+      productId: product.productId._id || product.productId,
+      sizeId: product.sizeId._id || product.sizeId,
+      quantity: product.quantity,
+      price: product.price || (product.productId && product.productId.price),
+    }));
 
+    // Kiểm tra sản phẩm không hợp lệ
+    const invalidProduct = normalizedProducts.find(
+      (product) =>
+        !product.productId ||
+        !product.sizeId ||
+        !product.price ||
+        isNaN(product.price) ||
+        !product.quantity ||
+        product.quantity <= 0
+    );
+
+    if (invalidProduct) {
+      return res.status(400).json({
+        message: `Sản phẩm không hợp lệ: ${JSON.stringify(invalidProduct)}`,
+      });
+    }
+
+    // Tính tổng giá trị đơn hàng
+    const totalAmount = normalizedProducts.reduce(
+      (total, product) => total + product.price * product.quantity,
+      0
+    );
+
+    // Tạo đối tượng đơn hàng mới
     const newOrder = new Order({
-      id_client: data.id_client,
-      id_cart: cart._id,
-      state: 0, // Mặc định là chưa xử lý
-      payment_method: data.payment_method,
+      id_client,
+      products: normalizedProducts,
+      state: 0,
+      payment_method,
       total_amount: totalAmount,
-      order_time: Date.now(),
-      payment_time: null,
-      completion_time: null
     });
 
-    const result = await newOrder.save();
+    // Lưu đơn hàng vào cơ sở dữ liệu
+    const savedOrder = await newOrder.save();
+
     res.status(201).json({
       message: "Đơn hàng đã được thêm thành công",
-      data: result
+      order: savedOrder,
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({
-      message: "Có lỗi xảy ra",
-      error: err.message
+      message: "Có lỗi xảy ra trong quá trình xử lý",
+      error: err.message,
     });
   }
 });
+
 
 // Cập nhật đơn hàng
 router.put('/update-order/:id', async (req, res) => {
@@ -1331,53 +1359,63 @@ router.get('/orders', async (req, res) => {
   try {
     const { clientId, state } = req.query;
 
-    // Kiểm tra nếu thiếu clientId hoặc state không hợp lệ
     if (!clientId) {
       return res.status(400).json({ status: 400, message: "Thiếu clientId" });
     }
+
+    if (state === undefined) {
+      return res.status(400).json({ status: 400, message: "Thiếu state" });
+    }
+
     const parsedState = parseInt(state);
     if (isNaN(parsedState)) {
       return res.status(400).json({ status: 400, message: "State không hợp lệ" });
     }
 
-    // Tìm kiếm danh sách đơn hàng theo clientId và state
     const orderList = await Order.find({ id_client: clientId, state: parsedState })
       .populate({
-        path: 'id_cart',
-        populate: {
-          path: 'products.productId',
-          model: 'product',
-          select: 'image product_name price'
-        }
+        path: 'products.productId', 
+        model: 'product', 
+        select: 'image product_name price' 
       })
       .populate({
-        path:'id_cart',
-        populate: {
-          path: 'products.sizeId',
-          model: 'sizes',
-          select: 'name'
-        }
+        path: 'products.sizeId', 
+        model: 'sizes', 
+        select: 'name' 
       })
-      .sort({ createdAt: -1 }); // Sắp xếp theo thời gian tạo mới nhất
+      .sort({ createdAt: -1 });
 
-    // Trả về kết quả
+    const formattedOrders = orderList.map(order => ({
+      id: order._id,
+      clientId: order.id_client,
+      state: order.state,
+      totalAmount: order.total_amount,
+      products: order.products.map(product => ({
+        productId: product.productId,  
+        productName: product.productId.product_name,
+        quantity: product.quantity,
+      })),
+      createdAt: order.createdAt,
+    }));
+
     res.status(200).json({
       status: 200,
-      message: orderList.length > 0
+      message: formattedOrders.length > 0
         ? "Lấy danh sách đơn hàng thành công"
         : "Không có đơn hàng nào phù hợp",
-      data: orderList
+      data: formattedOrders,
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({
       status: 500,
       message: "Lỗi server",
-      error: err.message
+      error: err.message,
     });
   }
 });
+
+
 router.get('/revenue-statistics', async (req, res) => {
   try {
     // Lấy danh sách đơn hàng đã hoàn thành (state = 1 có thể là đã hoàn thành)

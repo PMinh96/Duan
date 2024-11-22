@@ -6,36 +6,40 @@ const Order = new Scheme({
         type: String,
         required: true
     },
-    id_cart: {
-        type: Scheme.Types.ObjectId,
-        ref: 'cart', // Liên kết với giỏ hàng (Cart)
-        required: true
-    },
+    products: [
+        {
+            productId: { type: Scheme.Types.ObjectId, ref: 'product', required: true },
+            sizeId: { type: Scheme.Types.ObjectId, ref: 'sizes', required: true },
+            quantity: { type: Number, required: true },
+            price: { type: Number, required: true },
+        }
+    ],
     state: {
         type: Number,
         enum: [0, 1, 2], // 0 = Chờ xử lý, 1 = Đã thanh toán, 2 = hủy
-        default: 0 ,
+        default: 0,
     },
     payment_method: {
         type: String,
-        required: true // Phương thức thanh toán, ví dụ: "cash", "credit_card", "paypal"
+        enum: ['Cash on Delivery', 'paypal'],
+        required: true
     },
     total_amount: {
         type: Number,
-        required: true // Tổng số tiền của đơn hàng, có thể lấy từ tổng giá trị của giỏ hàng
+        required: true
     },
     order_time: {
         type: Date,
-        default: Date.now // Thời gian đặt hàng, mặc định là thời gian hiện tại
+        default: Date.now
     },
     payment_time: {
-        type: Date // Thời gian thanh toán (sau khi khách thanh toán)
+        type: Date
     },
     completion_time: {
-        type: Date // Thời gian hoàn thành đơn hàng
+        type: Date
     }
 }, {
-    timestamps: true // Tự động thêm createdAt và updatedAt
+    timestamps: true
 });
 
-module.exports = mongoose.model('order', Order)
+module.exports = mongoose.model('order', Order);
