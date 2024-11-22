@@ -1078,6 +1078,43 @@ router.post("/select-products", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+// chọn All
+router.post("/select-all-products", async (req, res) => {
+  const { userId, isSelected } = req.body; // isSelected xác định trạng thái cần đặt (true hoặc false)
+
+  if (!userId || typeof isSelected !== 'boolean') {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  try {
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    // Cập nhật trạng thái tất cả sản phẩm
+    cart.products.forEach(product => {
+      product.isSelected = isSelected;
+    });
+
+    // Tính lại tổng giá trị giỏ hàng nếu chọn tất cả
+    if (isSelected) {
+      cart.totalPrice = await calculateTotalPrice(cart.products);
+    } else {
+      cart.totalPrice = 0; // Nếu không chọn sản phẩm nào, tổng giá trị = 0
+    }
+
+    await cart.save();
+
+    res.status(200).json({
+      status: 200,
+      message: `All products ${isSelected ? "selected" : "deselected"} successfully`,
+      data: cart,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // Route chọn voucher trong giỏ hàng
 router.post("/select-voucher", async (req, res) => {
@@ -1199,7 +1236,7 @@ router.get("/get-order/:userId", async (req, res) => {
   }
 });
 
-router.delete("/remove-product", async (req, res) => {
+router.post("/remove-product", async (req, res) => {
   const { userId, productId } = req.body; // userId: ID của người dùng, productId: ID sản phẩm cần xóa
 
   if (!userId || !productId) {
