@@ -792,7 +792,7 @@ router.get("/get-favourite/:userId", async (req, res) => {
   try {
     // Tìm danh sách yêu thích của người dùng và populate thông tin sản phẩm và size
     const favourite = await Favourite.findOne({ userId })
-      .populate('products.productId', 'product_name price image') // Lấy thông tin sản phẩm
+      .populate('products.productId', 'product_name price image description sizeQuantities id_producttype') // Lấy thông tin sản phẩm
     if (!favourite) {
       return res.status(404).json({ message: 'Favourite list not found' });
     }
@@ -1341,7 +1341,26 @@ router.post('/add-order', async (req, res) => {
     });
   }
 });
-
+router.get("/get-list-orders", async (req, res) => {
+  try {
+    const data = await Order.find().sort({ createdAt: -1 });
+    if (data) {
+      res.json({
+        status: 200,
+        messenger: "Lấy danh sách thành công",
+        data: data,
+      });
+    } else {
+      res.json({
+        status: 400,
+        messenger: "lấy danh sách thất bại",
+        data: [],
+      });
+    }
+  } catch (error) {
+    console.log(error);
+  }
+});
 
 // Cập nhật đơn hàng
 router.put('/update-order/:id', async (req, res) => {
