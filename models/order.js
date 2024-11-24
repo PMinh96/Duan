@@ -37,6 +37,9 @@ const Order = new Scheme({
     },
     completion_time: {
         type: Date
+    },
+    cancleOrder_time:{
+        type: Date
     }
 }, {
     timestamps: true

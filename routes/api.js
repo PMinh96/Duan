@@ -1346,51 +1346,48 @@ router.post('/add-order', async (req, res) => {
 // Cập nhật đơn hàng
 router.put('/update-order/:id', async (req, res) => {
   try {
-    const orderId = req.params.id;  // ID của đơn hàng cần cập nhật
-    const data = req.body;
+    const orderId = req.params.id;
+    const { state } = req.body;
 
-    // Lấy thông tin đơn hàng hiện tại từ DB theo id
+    // Kiểm tra nếu state không được gửi
+    if (state === undefined) {
+      return res.status(400).json({
+        status: 400,
+        message: "Yêu cầu không hợp lệ. Vui lòng cung cấp state."
+      });
+    }
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({
-        "status": 404,
-        "message": "Đơn hàng không tồn tại"
+        status: 404,
+        message: "Đơn hàng không tồn tại"
       });
     }
+    order.state = state;
 
-    // Cập nhật các trường của đơn hàng, nếu có trong request body
-    order.id_client = data.id_client || order.id_client;
-    order.id_cart = data.id_cart || order.id_cart; // Giữ id_cart hoặc cập nhật nếu có
-    order.state = data.state !== undefined ? data.state : order.state; // Cập nhật state nếu có
-    order.payment_method = data.payment_method || order.payment_method;
-    order.total_amount = data.total_amount || order.total_amount; // Tổng số tiền có thể được cập nhật nếu cần
-    order.order_time = data.order_time || order.order_time; // Giữ nguyên nếu không có dữ liệu mới
-    order.payment_time = data.payment_time || order.payment_time; // Giữ nguyên nếu không có dữ liệu mới
-    order.completion_time = data.completion_time || order.completion_time; // Giữ nguyên nếu không có dữ liệu mới
+    if (state === 2) {
+      order.cancleOrder_time = new Date();
+    }
 
     // Lưu thay đổi vào cơ sở dữ liệu
-    const result = await order.save();
-    if (result) {
-      res.status(200).json({
-        "status": 200,
-        "message": "Cập nhật đơn hàng thành công",
-        "data": result
-      });
-    } else {
-      res.status(400).json({
-        "status": 400,
-        "message": "Cập nhật thất bại",
-        "data": []
-      });
-    }
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      "status": 500,
-      "message": "Lỗi server",
+    const updatedOrder = await order.save();
+
+    // Phản hồi thành công
+    return res.status(200).json({
+      status: 200,
+      message: "Cập nhật đơn hàng thành công",
+      data: updatedOrder
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: 500,
+      message: "Lỗi server"
     });
   }
 });
+
+
 //lấy danh sách đơn hàng
 router.get('/orders', async (req, res) => {
   try {
@@ -1423,13 +1420,16 @@ router.get('/orders', async (req, res) => {
       .sort({ createdAt: -1 });
 
     const formattedOrders = orderList.map(order => ({
-      id: order._id,
+      _id: order._id,
       clientId: order.id_client,
       state: order.state,
-      totalAmount: order.total_amount,
+      total_amount: order.total_amount,
+      order_time: order.order_time,
+      cancleOrder_time: order.cancleOrder_time,
       products: order.products.map(product => ({
         productId: product.productId,  
         productName: product.productId.product_name,
+        sizeId:product.sizeId,
         quantity: product.quantity,
       })),
       createdAt: order.createdAt,
