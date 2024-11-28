@@ -9,6 +9,10 @@ const Vouchers=new Scheme({
     validFrom: { type: String, required: true },  // Ngày bắt đầu hiệu lực
     validUntil: { type: String, required: true },  // Ngày hết hạn
     minimumOrderValue: { type: Number, required: true },  // Giá trị tối thiểu để sử dụng voucher
+    isSelected: { 
+        type: Boolean, 
+        default: false 
+    }
 },{
 })
 module.exports=mongoose.model('vouchers',Vouchers)
