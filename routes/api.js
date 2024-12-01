@@ -1523,6 +1523,39 @@ router.get('/orders', async (req, res) => {
   }
 });
 
+router.post("/remove-products", async (req, res) => {
+  const { userId, productIds } = req.body; // productIds là mảng `_id` của từng mục trong `products`
+
+  // Kiểm tra yêu cầu hợp lệ
+  if (!userId || !productIds || !Array.isArray(productIds)) {
+    return res.status(400).json({ message: "Missing or invalid required fields" });
+  }
+
+  try {
+    // Tìm giỏ hàng dựa vào userId
+    const cart = await Cart.findOne({ userId });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+    cart.products = cart.products.filter(
+      (item) => !productIds.includes(item._id.toString())
+    );
+
+    cart.totalPrice = await calculateTotalPrice(cart.products);
+    await cart.save();
+
+    res.status(200).json({
+      status: 200,
+      message: "Products removed from cart successfully",
+      data: cart,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
 
 router.get('/revenue-statistics', async (req, res) => {
   try {
