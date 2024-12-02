@@ -16,7 +16,7 @@ const Order = new Scheme({
     ],
     state: {
         type: Number,
-        enum: [0, 1, 2], // 0 = Chờ xử lý, 1 = Đã thanh toán, 2 = hủy
+        enum: [0, 1, 2, 3], // 0 = Chờ xử lý, 1 = Đã thanh toán, 2 = hủy, 3 = chờ thanh toán
         default: 0,
     },
     payment_method: {
