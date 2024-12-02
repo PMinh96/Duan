@@ -409,21 +409,18 @@ router.post('/add-size', async (req, res) => {
 router.get("/get-list-size", async (req, res) => {
   try {
     const data = await Sizes.find().sort({ createdAt: -1 });
-    if (data) {
-      res.json({
-        status: 200,
-        messenger: "Lấy danh sách thành công",
-        data: data,
-      });
-    } else {
-      res.json({
-        status: 400,
-        messenger: "lấy danh sách thất bại",
-        data: [],
-      });
-    }
+    res.json({
+      status: 200,
+      message: "Lấy danh sách thành công",
+      data: data
+    });
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      message: "Lỗi server khi lấy danh sách",
+      error: error.message
+    });
   }
 });
 
@@ -1482,14 +1479,14 @@ router.get('/orders', async (req, res) => {
 
     const orderList = await Order.find({ id_client: clientId, state: parsedState })
       .populate({
-        path: 'products.productId', 
-        model: 'product', 
-        select: 'image product_name price' 
+        path: 'products.productId',
+        model: 'product',
+        select: 'image product_name price'
       })
       .populate({
-        path: 'products.sizeId', 
-        model: 'sizes', 
-        select: 'name' 
+        path: 'products.sizeId',
+        model: 'sizes',
+        select: 'name'
       })
       .sort({ createdAt: -1 });
 
@@ -1502,9 +1499,9 @@ router.get('/orders', async (req, res) => {
       cancleOrder_time: order.cancleOrder_time,
       completion_time: order.completion_time,
       products: order.products.map(product => ({
-        productId: product.productId,  
+        productId: product.productId,
         productName: product.productId.product_name,
-        sizeId:product.sizeId,
+        sizeId: product.sizeId,
         quantity: product.quantity,
       })),
       createdAt: order.createdAt,
@@ -1563,28 +1560,59 @@ router.post("/remove-products", async (req, res) => {
 
 router.get('/revenue-statistics', async (req, res) => {
   try {
-    // Lấy danh sách đơn hàng đã hoàn thành (state = 1 có thể là đã hoàn thành)
-    const completedOrders = await Order.find({ state: 1 }).populate('id_cart');
+    const { startDate, endDate } = req.query;
+
+    // Kiểm tra xem startDate và endDate có được cung cấp không
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        status: 400,
+        message: "Thiếu startDate hoặc endDate"
+      });
+    }
+
+    // Chuyển đổi startDate và endDate thành đối tượng Date
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Kiểm tra xem ngày bắt đầu có lớn hơn ngày kết thúc không
+    if (start > end) {
+      return res.status(400).json({
+        status: 400,
+        message: "startDate phải nhỏ hơn endDate"
+      });
+    }
+
+    // Lấy danh sách đơn hàng đã hoàn thành (state = 1) trong khoảng thời gian
+    const completedOrders = await Order.find({
+      state: 1,
+      createdAt: {
+        $gte: start, // Ngày bắt đầu
+        $lte: end    // Ngày kết thúc
+      }
+    });
 
     // Tính tổng doanh thu
     let totalRevenue = 0;
     completedOrders.forEach(order => {
-      totalRevenue += order.total_amount;
+      totalRevenue += order.total_amount; // Giả sử trường total_amount tồn tại trong Order
     });
 
     res.json({
-      "status": 200,
-      "message": "Thống kê doanh thu thành công",
-      "data": {
-        totalRevenue: totalRevenue,
-        totalOrders: completedOrders.length
+      status: 200,
+      message: "Thống kê doanh thu thành công",
+      data: {
+        totalRevenue,
+        totalOrders: completedOrders.length, // Số lượng đơn hàng đã hoàn thành
+        startDate: startDate,
+        endDate: endDate
       }
     });
-  } catch (err) {
-    console.log(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).json({
-      "status": 500,
-      "message": "Lỗi server"
+      status: 500,
+      message: "Đã có lỗi xảy ra trong quá trình thống kê doanh thu",
+      error: error.message
     });
   }
 });
