@@ -1439,6 +1439,9 @@ router.put('/update-order/:id', async (req, res) => {
     if (state === 2) {
       order.cancleOrder_time = new Date();
     }
+    if (state === 3) {
+      order.completion_time = new Date();
+    }
 
     // Lưu thay đổi vào cơ sở dữ liệu
     const updatedOrder = await order.save();
@@ -1497,6 +1500,7 @@ router.get('/orders', async (req, res) => {
       total_amount: order.total_amount,
       order_time: order.order_time,
       cancleOrder_time: order.cancleOrder_time,
+      completion_time: order.completion_time,
       products: order.products.map(product => ({
         productId: product.productId,  
         productName: product.productId.product_name,
