@@ -27,10 +27,8 @@ app.post('/upload', upload.single('file'), (req, res) => {
     res.status(400).json({ message: 'File upload failed' });
   }
 });
-var cors = require('cors');
-app.use(cors({
-  origin: 'http://localhost:3001', // Đảm bảo rằng đây là origin mà bạn muốn cho phép
-}));
+const cors = require('cors');
+app.use(cors());
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');

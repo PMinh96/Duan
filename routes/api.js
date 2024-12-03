@@ -1,5 +1,7 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const fs = require('fs'); // Để đọc tệp
+const path = require('path'); // Để xử lý đường dẫn
+const router = express.Router();
 //Thêm model
 const Product = require("../models/product");
 const Suppliers = require("../models/suppliers");
@@ -336,6 +338,7 @@ router.put('/update-product/:id', Upload.array('image', 5), async (req, res) => 
 router.get('/prodct', async (req, res) => {
   try {
     const productList = await Product.find().sort({ createdAt: -1 });
+
     if (productList.length > 0) {
       res.json({
         "status": 200,
@@ -357,6 +360,62 @@ router.get('/prodct', async (req, res) => {
     });
   }
 });
+router.delete('/delete-product/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedProduct = await Product.findByIdAndDelete(id);
+    if (!deletedProduct) {
+      return res.status(404).json({ message: "Sản phẩm không tồn tại" });
+    }
+    res.status(200).json({ message: "Sản phẩm đã được xóa thành công" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
+// router.get('/prodct', async (req, res) => {
+//   try {
+//     const productList = await Product.find().sort({ createdAt: -1 });
+
+//     if (productList.length > 0) {
+//       const productsWithImages = await Promise.all(productList.map(async (product) => {
+//         const imageUrl = product.image; // Giả sử bạn có thuộc tính imagePath
+
+//         // Lấy ảnh từ URL
+//         const response = await fetch(imageUrl);
+//         if (!response.ok) throw new Error('Failed to fetch image');
+
+//         const imageBuffer = await response.buffer(); // Nhận dữ liệu ảnh dưới dạng buffer
+
+//         return {
+//           ...product.toObject(), // Chuyển đổi sản phẩm sang đối tượng
+//           image: imageBuffer.toString('base64'), // Chuyển đổi buffer sang base64
+//         };
+//       }));
+
+//       res.json({
+//         "status": 200,
+//         "message": "Lấy danh sách sản phẩm thành công",
+//         "data": productsWithImages
+//       });
+//     } else {
+//       res.json({
+//         "status": 404,
+//         "message": "Không có sản phẩm nào",
+//         "data": []
+//       });
+//     }
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).json({
+//       "status": 500,
+//       "message": "Lỗi server"
+//     });
+//   }
+// });
+
+
+
 // lấy thông tin sản phẩm theo ID
 router.get('/get_product/:id', async (req, res) => {
   try {
