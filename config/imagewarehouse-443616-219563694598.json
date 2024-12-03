@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "imagewarehouse-443616",
+  "private_key_id": "2195636945987830a313e0635bde1b5c61e158c4",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC9mCIj1mHsqks/\n8AhWr/nuxxZnyhJrcj4auaiP9SGmarsckV4ZWiFDEzoFkMhzVK/C3OrWzGY0xSLp\nnw0FdV71OwSFp2G8TWRXw4igEG820BchyHQBEnExXni3SmcO/2w3cKG815ucUI+0\nzzftGSSY36Gad1Sni2o+V521Y5gVDQW18LmiRayy7sbCnrCtDwJama5E0RwYkY3p\nXNAw8wbe7k8f/3KxsiAI5/oBQhMYbnnb0GHwjkWu/USVtoJDFI8FqA5Hfsl0pSiB\nOfAAJpN7/c/4DWd04BSvQin4Myk8R2NoG9X2+ABy5kDn+tH6awgLa0xIsyLMzOCa\nfpqag3l/AgMBAAECggEAUeLOv/68bZzBgnx4BYTc5EndffdTTE/bzewpBwAfSAKq\nDPUmGLoKSq+XrEazpMhLX1TOIvbGH/2TDicRVy2x1SXn1pgMCOm+MH+11zgx6JEo\npIEwxTPDasi8R6HdcCdWhH1jha3zuig7YSLsqz1kRpiz8gSfLfvzZ7is12aMDW7D\nffd5SHL6VTDRQgrSu8NpFKSSH9bsGfxGZkqH5+2VkKh326joB+qHK6eNuYyggueY\nzrCvrNDxnDSyFcdtEvpSG84eEWGvceZs9SqfnV8tz9IQlDTbsOrIaeiFiTF3NF8C\n7NcUQ4YvRkgnp7eMp9XWYpvB+MiK7xb17jM5PobofQKBgQDkaDcIOH82/Vvp3aN7\nJJpfc0ay5NAsvpo+IOxc+rp9jRGcSviIjNef7fKAC9Jdreh7cuvA79SkVwGT82vY\n/f4tW/XOay0e7ieOD5T41elV12sfpFBGyCc0UWBE6MsvgxJDny2RdV6ZZLy3Sjg3\nfXC/jWqMAg7GgE8JCJ20vXcMgwKBgQDUf5TqyR8CQRjMb3FBeZ8x9HR2CHEn2etx\nNINnpQjkSK+9Y9rU4fil/V5r709t72ZGIKJ5+1DMwkf5mRyYlGfkMRzb3kG2uHzv\ncLZM9m+fzvIzY2wFNs3tpFCE5okWTx8yyb16U8SwmAX3ph1525timBy4L4CbYFAW\nXwRllUXGVQKBgQDjmTllVq7lg9fIFdRmzBWMEZmcf8c1HwUh7bq5+BpHK4Al5sr7\nfqUKt5gSojUQpk/oW56ylgmlbRGkdUa9ZnOWjXFGLKQ8kwIVXE+NGdM2d79GO3zG\n24G9b21nnTWC9bAIdCB7NqJ6ZdhrKGkWWkg0iF1ogFBq2sZm8Q/9X2K2swKBgQCg\nOjMHde8zu/H+9GjpfdNTz4ehGGx6KA8npPkQRZiWyVf57jkrG9hpEMsJh8DUnBb5\n+dGJOL6MJlIvGgw94GkV3xJrlwLly+YohUxwa8FvNpPZu7XPmKtd7O/pxgrID5Du\nsr90ZYWBwp99RHwlTjmz9g5xsx++CLlapPqjvhKGoQKBgBWPM36prTL0V/+cFtIW\nhpi/mqzII3IDemXxt0S52JMTXTaznkMpiC6Y81/YJCsi3c/16uDbg6H7AEd/ABNU\nMkfc4nddIivVf9fXpX6E0qWDOvqnx3fYKCLHDCN6XZYFdCUWfCvVaBAAELIdmcpa\ntV5A0OP8nCY69H3Ed2vFsFz6\n-----END PRIVATE KEY-----\n",
+  "client_email": "imagewarehouse@imagewarehouse-443616.iam.gserviceaccount.com",
+  "client_id": "112726370417481018780",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/imagewarehouse%40imagewarehouse-443616.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

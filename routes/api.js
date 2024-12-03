@@ -14,6 +14,7 @@ const Order = require('../models/order')
 const Typeproducts = require('../models/typeproducts')
 const Vouchers = require('../models/vouchers');
 const suppliers = require('../models/suppliers');
+const { uploadFileToDrive } = require('../config/google');
 //Thêm nhà cung cấp
 router.post('/add-supplier', Upload.single('image'), async (req, res) => {
   try {
@@ -173,12 +174,36 @@ router.get('/get-product-by-name', async (req, res) => {
     console.log(error)
   }
 })
-// Thêm sản phẩm 1 anh
-// router.post('/add-product', Upload.single('image'), async (req, res) => {
+
+// router.post('/add-product', Upload.array('image', 5), async (req, res) => {
+//   // Upload.array('image', 5) => up nhiều file tối đa là 5 abc
 //   try {
 //     const data = req.body;
-//     const { file } = req
-//     const urlsImage = `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+//     const files = req.files;
+//     if (!files || files.length === 0) {
+//       return res.status(400).json({
+//         "status": 400,
+//         "message": "Không có file nào được tải lên"
+//       });
+//     }
+
+//     // Tạo mảng URLs từ các file đã tải lên
+//     const urlsImage = files.map((file) => `${req.protocol}://${req.get("host")}/upload/${file.filename}`);
+
+//     let sizeQuantities = [];
+//     if (data.sizeQuantities) {
+//       try {
+//         sizeQuantities = JSON.parse(data.sizeQuantities).map((sizeQuantity) => ({
+//           sizeId: sizeQuantity.sizeId,
+//           quantity: sizeQuantity.quantity
+//         }));
+//       } catch (error) {
+//         return res.status(400).json({
+//           status: 400,
+//           message: "Định dạng sizeQuantities không hợp lệ"
+//         });
+//       }
+//     }
 //     const newProduct = new Product({
 //       image: urlsImage,
 //       quantity: data.quantity,
@@ -188,7 +213,9 @@ router.get('/get-product-by-name', async (req, res) => {
 //       state: data.state,
 //       id_producttype: data.id_producttype,
 //       id_suppliers: data.id_suppliers,
-//     })
+//       sizeQuantities: sizeQuantities,
+//     });
+
 //     const result = await newProduct.save();
 //     if (result) {
 //       res.json({
@@ -197,22 +224,47 @@ router.get('/get-product-by-name', async (req, res) => {
 //         "data": result
 //       });
 //     } else {
-//       res.json({
+//       res.status(400).json({
 //         "status": 400,
 //         "message": "Thất bại",
 //         "data": []
 //       });
 //     }
 //   } catch (err) {
-//     console.log(err);
+//     console.log(err.stack);
+//     res.status(500).json({
+//       "status": 500,
+//       "message": "Lỗi máy chủ",
+//       "error": err.message,
+//       "stack": err.stack
+//     });
 //   }
 // });
-//Thêm sản phẩm nhiều ảnh
+
+const deleteTempFile = (filePath) => {
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error("Lỗi khi xóa file tạm:", err);
+    } else {
+      console.log("Đã xóa file tạm:", filePath);
+    }
+  });
+};
+
+const extractDriveFileId = (url) => {
+  const regex = /\/d\/([a-zA-Z0-9_-]+)\//;
+  const matches = url.match(regex);
+  if (matches) {
+    return matches[1]; 
+  }
+  return null;
+};
+
 router.post('/add-product', Upload.array('image', 5), async (req, res) => {
-  // Upload.array('image', 5) => up nhiều file tối đa là 5 abc
   try {
     const data = req.body;
     const files = req.files;
+
     if (!files || files.length === 0) {
       return res.status(400).json({
         "status": 400,
@@ -220,8 +272,23 @@ router.post('/add-product', Upload.array('image', 5), async (req, res) => {
       });
     }
 
-    // Tạo mảng URLs từ các file đã tải lên
-    const urlsImage = files.map((file) => `${req.protocol}://${req.get("host")}/upload/${file.filename}`);
+    const urlsImage = [];
+    for (let file of files) {
+      try {
+        const url = await uploadFileToDrive(file);
+        const authUrl = await extractDriveFileId(url)
+        urlsImage.push(`https://lh3.googleusercontent.com/d/${authUrl}`);
+        deleteTempFile(file.path);
+      } catch (error) {
+        console.error("Lỗi khi tải file lên Google Drive:", error);
+        return res.status(500).json({
+          "status": 500,
+          "message": "Lỗi khi tải ảnh lên Google Drive",
+          "error": error.message
+        });
+      }
+    }
+    console.log('url', urlsImage)
 
     let sizeQuantities = [];
     if (data.sizeQuantities) {
@@ -273,6 +340,7 @@ router.post('/add-product', Upload.array('image', 5), async (req, res) => {
     });
   }
 });
+
 
 //sửa sản phẩm
 router.put('/update-product/:id', Upload.array('image', 5), async (req, res) => {
