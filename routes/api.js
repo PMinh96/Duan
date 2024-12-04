@@ -15,37 +15,70 @@ const Typeproducts = require('../models/typeproducts')
 const Vouchers = require('../models/vouchers');
 const suppliers = require('../models/suppliers');
 const { uploadFileToDrive } = require('../config/google');
-//Thêm nhà cung cấp
+//thêm nhà cung cấp
 router.post('/add-supplier', Upload.single('image'), async (req, res) => {
   try {
     const data = req.body;
-    const { file } = req
-    const urlsImage = `${req.protocol}://${req.get("host")}/upload/${file.filename}`;
-    const newSuppliers = new Suppliers({
-      name: data.name,
-      phone: data.phone,
-      email: data.email,
-      description: data.description,
-      image: urlsImage,
-    })
-    const result = await newSuppliers.save();
-    if (result) {
-      res.json({
-        "status": 200,
-        "message": "Thêm nhà cung cấp thành công",
-        "data": result
-      });
-    } else {
-      res.json({
+    const { file } = req;
+
+    if (!file) {
+      return res.status(400).json({
         "status": 400,
-        "message": "Thất bại",
-        "data": []
+        "message": "Không có file nào được tải lên"
+      });
+    }
+
+    try {
+      // Upload ảnh lên Google Drive
+      const url = await uploadFileToDrive(file);
+      const authUrl = await extractDriveFileId(url);
+      const urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
+      
+      // Xóa file tạm
+      deleteTempFile(file.path);
+
+      // Tạo nhà cung cấp mới
+      const newSuppliers = new Suppliers({
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        description: data.description,
+        image: urlsImage,
+      });
+
+      const result = await newSuppliers.save();
+      if (result) {
+        res.json({
+          "status": 200,
+          "message": "Thêm nhà cung cấp thành công",
+          "data": result
+        });
+      } else {
+        res.status(400).json({
+          "status": 400,
+          "message": "Thất bại",
+          "data": []
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải file lên Google Drive:", error);
+      return res.status(500).json({
+        "status": 500,
+        "message": "Lỗi khi tải ảnh lên Google Drive",
+        "error": error.message
       });
     }
   } catch (err) {
-    console.log(err);
+    console.error(err.stack);
+    res.status(500).json({
+      "status": 500,
+      "message": "Lỗi máy chủ",
+      "error": err.message,
+      "stack": err.stack
+    });
   }
 });
+
 // xoá nhà cung cấp
 router.delete("/delete-supplier-by-id/:id", async (req, res) => {
   try {
@@ -84,10 +117,22 @@ router.put('/update-supplier/:id', Upload.single('image'), async (req, res) => {
       });
     }
 
-    // Nếu có file ảnh mới thì cập nhật, không thì giữ ảnh cũ
+    // Nếu có file ảnh mới thì tải ảnh lên Google Drive
     let urlsImage = supplier.image; // Giữ ảnh cũ nếu không có ảnh mới
     if (file) {
-      urlsImage = `${req.protocol}://${req.get("host")}/upload/${file.filename}`;
+      try {
+        const url = await uploadFileToDrive(file);
+        const authUrl = await extractDriveFileId(url);
+        urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
+        deleteTempFile(file.path); // Xóa file tạm
+      } catch (error) {
+        console.error("Lỗi khi tải file lên Google Drive:", error);
+        return res.status(500).json({
+          "status": 500,
+          "message": "Lỗi khi tải ảnh lên Google Drive",
+          "error": error.message
+        });
+      }
     }
 
     // Cập nhật các trường của nhà cung cấp
@@ -97,6 +142,7 @@ router.put('/update-supplier/:id', Upload.single('image'), async (req, res) => {
     supplier.description = data.description || supplier.description;
     supplier.image = urlsImage;
 
+    // Lưu thông tin nhà cung cấp đã cập nhật
     const result = await supplier.save();
     if (result) {
       res.json({
@@ -112,13 +158,16 @@ router.put('/update-supplier/:id', Upload.single('image'), async (req, res) => {
       });
     }
   } catch (err) {
-    console.log(err);
+    console.error(err.stack);
     res.status(500).json({
       "status": 500,
       "message": "Lỗi server",
+      "error": err.message,
+      "stack": err.stack
     });
   }
 });
+
 //lấy danh sách nhà cung cấp
 router.get('/suppliers', async (req, res) => {
   try {
@@ -358,19 +407,34 @@ router.put('/update-product/:id', Upload.array('image', 5), async (req, res) => 
       });
     }
 
-    // Nếu có file ảnh mới thì cập nhật
-    let urlsImage = product.image || []; // Lấy ảnh cũ
+    // Xử lý ảnh mới
+    let urlsImage = product.image || []; // Lấy ảnh cũ nếu không có ảnh mới
     if (files && files.length > 0) {
-      urlsImage = files.map(file => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`);
+      try {
+        urlsImage = [];
+        for (let file of files) {
+          const url = await uploadFileToDrive(file);
+          const authUrl = await extractDriveFileId(url);
+          urlsImage.push(`https://lh3.googleusercontent.com/d/${authUrl}`);
+          deleteTempFile(file.path); // Xóa file tạm sau khi upload
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải ảnh lên Google Drive:", err);
+        return res.status(500).json({
+          status: 500,
+          message: "Lỗi khi tải ảnh lên Google Drive",
+          error: err.message
+        });
+      }
     }
 
-    // Cập nhật các trường
+    // Cập nhật các trường sản phẩm
     product.product_name = data.product_name || product.product_name;
     product.price = data.price || product.price;
     product.state = data.state || product.state;
     product.description = data.description || product.description;
     product.quantity = data.quantity || product.quantity;
-    product.image = urlsImage;
+    product.image = urlsImage; // Cập nhật ảnh mới
     product.id_producttype = data.id_producttype || product.id_producttype;
     product.id_suppliers = data.id_suppliers || product.id_suppliers;
 
@@ -386,7 +450,7 @@ router.put('/update-product/:id', Upload.array('image', 5), async (req, res) => 
       }
     }
 
-    // Lưu thay đổi
+    // Lưu sản phẩm
     const result = await product.save();
     res.json({
       status: 200,
@@ -399,9 +463,11 @@ router.put('/update-product/:id', Upload.array('image', 5), async (req, res) => 
     res.status(500).json({
       status: 500,
       message: "Lỗi server",
+      error: err.message
     });
   }
 });
+
 // danh sách sản phẩm
 router.get('/prodct', async (req, res) => {
   try {
@@ -553,41 +619,71 @@ router.get("/get-list-size", async (req, res) => {
 
 
 //** loại sản phẩm */
-// thêm loại
+//thêm loại 
 router.post('/add-type', Upload.single('image'), async (req, res) => {
   try {
     const data = req.body;
     const { file } = req;
-    const urlsImage = `${req.protocol}://${req.get("host")}/upload/${file.filename}`;
 
-    // Giả sử bạn gửi một chuỗi chứa các ID kích thước, phân cách bằng dấu phẩy
-    const sizesArray = data.id_size.split(',').map(id => id.trim()); // Chia chuỗi thành mảng và loại bỏ khoảng trắng
-
-    const newTypeproducts = new Typeproducts({
-      name: data.name,
-      image: urlsImage,
-      id_size: sizesArray
-    });
-
-    const result = await newTypeproducts.save();
-    if (result) {
-      res.json({
-        "status": 200,
-        "message": "Thêm thành công",
-        "data": result
-      });
-    } else {
-      res.json({
+    if (!file) {
+      return res.status(400).json({
         "status": 400,
-        "message": "Thất bại",
-        "data": []
+        "message": "Không có file nào được tải lên"
+      });
+    }
+
+    try {
+      // Upload ảnh lên Google Drive
+      const url = await uploadFileToDrive(file);
+      const authUrl = await extractDriveFileId(url);
+      const urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
+      
+      // Xóa file tạm sau khi tải lên thành công
+      deleteTempFile(file.path);
+
+      // Chuyển đổi chuỗi id_size thành mảng
+      const sizesArray = data.id_size.split(',').map(id => id.trim());
+
+      // Tạo loại sản phẩm mới
+      const newTypeproducts = new Typeproducts({
+        name: data.name,
+        image: urlsImage,
+        id_size: sizesArray
+      });
+
+      const result = await newTypeproducts.save();
+      if (result) {
+        res.json({
+          "status": 200,
+          "message": "Thêm loại sản phẩm thành công",
+          "data": result
+        });
+      } else {
+        res.status(400).json({
+          "status": 400,
+          "message": "Thêm loại sản phẩm thất bại",
+          "data": []
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải file lên Google Drive:", error);
+      return res.status(500).json({
+        "status": 500,
+        "message": "Lỗi khi tải ảnh lên Google Drive",
+        "error": error.message
       });
     }
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: err.message });
+    console.error(err.stack);
+    res.status(500).json({
+      "status": 500,
+      "message": "Lỗi máy chủ",
+      "error": err.message,
+      "stack": err.stack
+    });
   }
 });
+
 
 
 // danh sách loại sản phẩm
@@ -652,82 +748,128 @@ router.put('/update-typeproduct/:id', Upload.single('image'), async (req, res) =
     const typeproduct = await Typeproducts.findById(typeID);
     if (!typeproduct) {
       return res.status(404).json({
-        "status": 404,
-        "message": "Không tồn tại loại sản phẩm"
+        status: 404,
+        message: "Không tồn tại loại sản phẩm"
       });
     }
 
     // Giữ nguyên đường dẫn hình ảnh cũ nếu không có hình ảnh mới
     let urlsImage = typeproduct.image;
     if (file) {
-      urlsImage = `${req.protocol}://${req.get("host")}/upload/${file.filename}`;
+      try {
+        const url = await uploadFileToDrive(file);
+        const authUrl = await extractDriveFileId(url);
+        urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
+        deleteTempFile(file.path); // Xóa file tạm sau khi upload
+      } catch (err) {
+        console.error("Lỗi khi tải ảnh lên Google Drive:", err);
+        return res.status(500).json({
+          status: 500,
+          message: "Lỗi khi tải ảnh lên Google Drive",
+          error: err.message
+        });
+      }
     }
 
     // Cập nhật các trường của loại sản phẩm
     typeproduct.name = data.name || typeproduct.name;
-    typeproduct.id_size = data.id_size ? data.id_size.split(',').map(id => id.trim()) : typeproduct.id_size;
+    typeproduct.id_size = data.id_size
+      ? data.id_size.split(',').map(id => id.trim())
+      : typeproduct.id_size;
     typeproduct.image = urlsImage;
 
     // Lưu lại các thay đổi
     const result = await typeproduct.save();
     if (result) {
       res.json({
-        "status": 200,
-        "message": "Cập nhật thành công",
-        "data": result
+        status: 200,
+        message: "Cập nhật thành công",
+        data: result
       });
     } else {
       res.json({
-        "status": 400,
-        "message": "Cập nhật thất bại",
-        "data": []
+        status: 400,
+        message: "Cập nhật thất bại",
+        data: []
       });
     }
   } catch (err) {
     console.log(err);
     res.status(500).json({
-      "status": 500,
-      "message": "Lỗi server",
+      status: 500,
+      message: "Lỗi server",
     });
   }
 });
+
 //**voucher */
 // thêm voucher
 router.post('/add-voucher', Upload.single('image'), async (req, res) => {
   try {
     const data = req.body;
-    const { file } = req
-    const urlsImage = `${req.protocol}://${req.get("host")}/upload/${file.filename}`;
+    const { file } = req;
 
-    const newVouchers = new Vouchers({
-      name: data.name,
-      image: urlsImage,
-      description: data.description,  // Mô tả về voucher
-      discountValue: data.discountValue,  // Giá trị giảm giá
-      discountType: data.discountType,  // Loại giảm giá (percent hoặc fixed)
-      validFrom: data.validFrom,  // Ngày bắt đầu hiệu lực
-      validUntil: data.validUntil,  // Ngày hết hạn
-      minimumOrderValue: data.minimumOrderValue,// Giá tối thiểu
-    })
-    const result = await newVouchers.save();
-    if (result) {
-      res.json({
-        "status": 200,
-        "message": "Thêm thành công",
-
-        "data": result
-      });
-    } else {
-      res.json({
+    if (!file) {
+      return res.status(400).json({
         "status": 400,
-        "message": "Thất bại",
-        "data": []
+        "message": "Không có file nào được tải lên"
+      });
+    }
+
+    try {
+      // Upload ảnh lên Google Drive
+      const url = await uploadFileToDrive(file);
+      const authUrl = await extractDriveFileId(url);
+      const urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
+      
+      // Xóa file tạm sau khi upload thành công
+      deleteTempFile(file.path);
+
+      // Tạo voucher mới
+      const newVouchers = new Vouchers({
+        name: data.name,
+        image: urlsImage,
+        description: data.description,  // Mô tả về voucher
+        discountValue: data.discountValue,  // Giá trị giảm giá
+        discountType: data.discountType,  // Loại giảm giá (percent hoặc fixed)
+        validFrom: data.validFrom,  // Ngày bắt đầu hiệu lực
+        validUntil: data.validUntil,  // Ngày hết hạn
+        minimumOrderValue: data.minimumOrderValue, // Giá trị đơn hàng tối thiểu
+      });
+
+      const result = await newVouchers.save();
+      if (result) {
+        res.json({
+          "status": 200,
+          "message": "Thêm voucher thành công",
+          "data": result
+        });
+      } else {
+        res.status(400).json({
+          "status": 400,
+          "message": "Thêm voucher thất bại",
+          "data": []
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải file lên Google Drive:", error);
+      return res.status(500).json({
+        "status": 500,
+        "message": "Lỗi khi tải ảnh lên Google Drive",
+        "error": error.message
       });
     }
   } catch (err) {
-    console.log(err);
+    console.error(err.stack);
+    res.status(500).json({
+      "status": 500,
+      "message": "Lỗi máy chủ",
+      "error": err.message,
+      "stack": err.stack
+    });
   }
 });
+
 // dánh sách voucher
 router.get("/get-list-voucher", async (req, res) => {
   try {
@@ -756,16 +898,28 @@ router.put('/update-voucher/:id', Upload.single('image'), async (req, res) => {
     const data = req.body;
     let urlsImage;
 
-
+    // Kiểm tra và xử lý file ảnh
     if (req.file) {
-      urlsImage = `${req.protocol}://${req.get("host")}/upload/${req.file.filename}`;
+      try {
+        const uploadedUrl = await uploadFileToDrive(req.file); // Upload ảnh lên Google Drive
+        const authUrl = await extractDriveFileId(uploadedUrl); // Lấy URL hợp lệ
+        urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
+        deleteTempFile(req.file.path); // Xóa file tạm sau khi upload
+      } catch (error) {
+        console.error("Lỗi khi tải ảnh lên Google Drive:", error);
+        return res.status(500).json({
+          status: 500,
+          message: "Lỗi khi tải ảnh lên Google Drive",
+          error: error.message,
+        });
+      }
     } else {
-      // Giữ lại đường dẫn ảnh cũ
+      // Giữ lại đường dẫn ảnh cũ nếu không có ảnh mới
       const existingVoucher = await Vouchers.findById(voucherId);
       if (!existingVoucher) {
         return res.status(404).json({
-          "status": 404,
-          "message": "Voucher không tồn tại",
+          status: 404,
+          message: "Voucher không tồn tại",
         });
       }
       urlsImage = existingVoucher.image;
@@ -775,39 +929,40 @@ router.put('/update-voucher/:id', Upload.single('image'), async (req, res) => {
     const updatedVoucher = await Vouchers.findByIdAndUpdate(
       voucherId,
       {
-        name: data.name,
+        name: data.name || updatedVoucher.name,
         image: urlsImage,
-        description: data.description,
-        discountValue: data.discountValue,
-        discountType: data.discountType,
-        validFrom: data.validFrom,
-        validUntil: data.validUntil,
-        minimumOrderValue: data.minimumOrderValue,
+        description: data.description || updatedVoucher.description,
+        discountValue: data.discountValue || updatedVoucher.discountValue,
+        discountType: data.discountType || updatedVoucher.discountType,
+        validFrom: data.validFrom || updatedVoucher.validFrom,
+        validUntil: data.validUntil || updatedVoucher.validUntil,
+        minimumOrderValue: data.minimumOrderValue || updatedVoucher.minimumOrderValue,
       },
       { new: true }
     );
 
     if (updatedVoucher) {
       res.json({
-        "status": 200,
-        "message": "Cập nhật thành công",
-        "data": updatedVoucher,
+        status: 200,
+        message: "Cập nhật thành công",
+        data: updatedVoucher,
       });
     } else {
-      res.json({
-        "status": 400,
-        "message": "Cập nhật thất bại",
-        "data": [],
+      res.status(400).json({
+        status: 400,
+        message: "Cập nhật thất bại",
+        data: [],
       });
     }
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({
-      "status": 500,
-      "message": "Có lỗi xảy ra",
+      status: 500,
+      message: "Có lỗi xảy ra",
     });
   }
 });
+
 
 /* API evaluate*/
 // Thêm yêu thích
