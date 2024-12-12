@@ -1609,12 +1609,12 @@ router.post("/remove-product", async (req, res) => {
 //Thêm đơn hàng
 router.post('/add-order', async (req, res) => {
   try {
-    const { id_client, payment_method, products } = req.body;
+    const { id_client, payment_method, products, total_amount } = req.body;
 
     // Kiểm tra dữ liệu đầu vào
-    if (!id_client || !payment_method || !products || products.length === 0) {
+    if (!id_client || !payment_method || !products || products.length === 0 || total_amount == null) {
       return res.status(400).json({
-        message: "Thiếu dữ liệu cần thiết: id_client, payment_method, hoặc danh sách sản phẩm",
+        message: "Thiếu dữ liệu cần thiết: id_client, payment_method, danh sách sản phẩm, hoặc tổng giá trị đơn hàng",
       });
     }
 
@@ -1642,19 +1642,13 @@ router.post('/add-order', async (req, res) => {
       });
     }
 
-    // Tính tổng giá trị đơn hàng
-    const totalAmount = normalizedProducts.reduce(
-      (total, product) => total + product.price * product.quantity,
-      0
-    );
-
     // Tạo đối tượng đơn hàng mới
     const newOrder = new Order({
       id_client,
       products: normalizedProducts,
       state: 0,
       payment_method,
-      total_amount: totalAmount,
+      total_amount: total_amount, 
     });
 
     // Lưu đơn hàng vào cơ sở dữ liệu
@@ -1672,6 +1666,8 @@ router.post('/add-order', async (req, res) => {
     });
   }
 });
+
+
 router.get("/get-list-orders", async (req, res) => {
   try {
     const data = await Order.find().sort({ createdAt: -1 });
@@ -1989,4 +1985,47 @@ router.get('/typeproduct/:id', async (req, res) => {
     });
   }
 });
+router.post('/submit-evaluation', async (req, res) => {
+  try {
+      const { id_client, product, text, stars } = req.body;
+      if (!id_client || !product || !text || !stars) {
+          return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Create new Evaluate instance
+      const newEvaluate = new Evaluate({
+          id_client,
+          product,
+          text,
+          stars
+      });
+
+      // Save to database
+      await newEvaluate.save();
+
+      res.status(201).json({ message: "Evaluation added successfully", evaluate: newEvaluate });
+  } catch (error) {
+      res.status(500).json({ message: error.message });
+  }
+});
+router.get('/get-evaluation/:productId', async (req, res) => {
+  const { productId } = req.params;
+
+  try {
+      // Tìm kiếm các đánh giá chứa productId trong mảng sản phẩm
+      const reviews = await Evaluate.find({ "product.productId": productId })
+          .populate('product.productId') // Nếu cần lấy thông tin chi tiết sản phẩm
+          .populate('product.sizeId');   // Nếu cần lấy thông tin chi tiết size
+
+      if (reviews.length === 0) {
+          return res.status(404).json({ message: 'No reviews found for this product.' });
+      }
+
+      return res.status(200).json(reviews);
+  } catch (error) {
+      console.error('Error fetching reviews:', error);
+      return res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
 module.exports = router;
