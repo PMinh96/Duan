@@ -1609,31 +1609,41 @@ router.post("/remove-product", async (req, res) => {
 //Thêm đơn hàng
 router.post('/add-order', async (req, res) => {
   try {
-    const { id_client, payment_method, products, total_amount } = req.body;
+    const { id_client, payment_method, products, total_amount, name_user, phone_user, address_user } = req.body;
 
     // Kiểm tra dữ liệu đầu vào
-    if (!id_client || !payment_method || !products || products.length === 0 || total_amount == null) {
+    if (
+      !id_client || 
+      !payment_method || 
+      !products || 
+      products.length === 0 || 
+      total_amount == null ||
+      !name_user ||
+      !phone_user ||
+      !address_user
+    ) {
       return res.status(400).json({
-        message: "Thiếu dữ liệu cần thiết: id_client, payment_method, danh sách sản phẩm, hoặc tổng giá trị đơn hàng",
+        message: "Thiếu dữ liệu cần thiết: id_client, name_user, phone_user, address_user, payment_method, danh sách sản phẩm, hoặc tổng giá trị đơn hàng",
       });
     }
 
+    // Chuẩn hóa danh sách sản phẩm
     const normalizedProducts = products.map((product) => ({
-      productId: product.productId._id || product.productId,
-      sizeId: product.sizeId._id || product.sizeId,
+      productId: product.productId._id || product.productId, // Lấy _id nếu productId là object
+      sizeId: product.sizeId._id || product.sizeId, // Lấy _id nếu sizeId là object
       quantity: product.quantity,
-      price: product.price || (product.productId && product.productId.price),
+      price: product.price || (product.productId && product.productId.price), // Lấy giá nếu tồn tại
     }));
 
     // Kiểm tra sản phẩm không hợp lệ
     const invalidProduct = normalizedProducts.find(
       (product) =>
-        !product.productId ||
-        !product.sizeId ||
-        !product.price ||
-        isNaN(product.price) ||
-        !product.quantity ||
-        product.quantity <= 0
+        !product.productId || // Kiểm tra ID sản phẩm
+        !product.sizeId || // Kiểm tra ID size
+        !product.price || // Kiểm tra giá sản phẩm
+        isNaN(product.price) || // Kiểm tra giá là số
+        !product.quantity || // Kiểm tra số lượng
+        product.quantity <= 0 // Kiểm tra số lượng hợp lệ
     );
 
     if (invalidProduct) {
@@ -1645,8 +1655,11 @@ router.post('/add-order', async (req, res) => {
     // Tạo đối tượng đơn hàng mới
     const newOrder = new Order({
       id_client,
+      name_user,
+      phone_user,
+      address_user,
       products: normalizedProducts,
-      state: 0,
+      state: 0, // Mặc định là "Chờ xử lý"
       payment_method,
       total_amount: total_amount,
     });
@@ -1654,18 +1667,20 @@ router.post('/add-order', async (req, res) => {
     // Lưu đơn hàng vào cơ sở dữ liệu
     const savedOrder = await newOrder.save();
 
+    // Phản hồi khi thêm đơn hàng thành công
     res.status(201).json({
       message: "Đơn hàng đã được thêm thành công",
       order: savedOrder,
     });
   } catch (err) {
-    console.error(err);
+    console.error(err); // Log lỗi ra console để debug
     res.status(500).json({
       message: "Có lỗi xảy ra trong quá trình xử lý",
       error: err.message,
     });
   }
 });
+
 
 router.get('/orders/:orderId', async (req, res) => {
   try {
@@ -1794,7 +1809,24 @@ router.put('/update-order/:id', async (req, res) => {
       });
     }
     order.state = state;
-
+    if(state === 1){
+      // Trừ số lượng size của sản phẩm
+      for (const orderProduct of order.products) {
+        const product = await Product.findById(orderProduct.productId);
+        if (product) {
+          product.sizeQuantities = product.sizeQuantities.map((size) => {
+            if (size.sizeId.toString() === orderProduct.sizeId.toString()) {
+              return {
+                ...size,
+                quantity: Math.max(0, size.quantity - orderProduct.quantity)
+              };
+            }
+            return size;
+          });
+          await product.save();
+        }
+      }
+    }
     if (state === 2) {
       order.cancleOrder_time = new Date();
     }
