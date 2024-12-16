@@ -21,7 +21,6 @@ const Order = new Scheme({
     },
     payment_method: {
         type: String,
-        enum: ['Cash on Delivery', 'paypal'],
         required: true
     },
     total_amount: {

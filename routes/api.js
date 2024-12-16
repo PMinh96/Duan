@@ -33,7 +33,7 @@ router.post('/add-supplier', Upload.single('image'), async (req, res) => {
       const url = await uploadFileToDrive(file);
       const authUrl = await extractDriveFileId(url);
       const urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
-      
+
       // Xóa file tạm
       deleteTempFile(file.path);
 
@@ -304,7 +304,7 @@ const extractDriveFileId = (url) => {
   const regex = /\/d\/([a-zA-Z0-9_-]+)\//;
   const matches = url.match(regex);
   if (matches) {
-    return matches[1]; 
+    return matches[1];
   }
   return null;
 };
@@ -637,7 +637,7 @@ router.post('/add-type', Upload.single('image'), async (req, res) => {
       const url = await uploadFileToDrive(file);
       const authUrl = await extractDriveFileId(url);
       const urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
-      
+
       // Xóa file tạm sau khi tải lên thành công
       deleteTempFile(file.path);
 
@@ -821,7 +821,7 @@ router.post('/add-voucher', Upload.single('image'), async (req, res) => {
       const url = await uploadFileToDrive(file);
       const authUrl = await extractDriveFileId(url);
       const urlsImage = `https://lh3.googleusercontent.com/d/${authUrl}`;
-      
+
       // Xóa file tạm sau khi upload thành công
       deleteTempFile(file.path);
 
@@ -1648,7 +1648,7 @@ router.post('/add-order', async (req, res) => {
       products: normalizedProducts,
       state: 0,
       payment_method,
-      total_amount: total_amount, 
+      total_amount: total_amount,
     });
 
     // Lưu đơn hàng vào cơ sở dữ liệu
@@ -1667,25 +1667,109 @@ router.post('/add-order', async (req, res) => {
   }
 });
 
-
-router.get("/get-list-orders", async (req, res) => {
+router.get('/orders/:orderId', async (req, res) => {
   try {
-    const data = await Order.find().sort({ createdAt: -1 });
-    if (data) {
-      res.json({
-        status: 200,
-        messenger: "Lấy danh sách thành công",
-        data: data,
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId)
+      .populate({
+        path: 'products.productId',
+        model: 'product',
+        select: 'image product_name price'
+      })
+      .populate({
+        path: 'products.sizeId',
+        model: 'sizes',
+        select: 'name'
       });
-    } else {
-      res.json({
-        status: 400,
-        messenger: "lấy danh sách thất bại",
-        data: [],
-      });
+
+    if (!order) {
+      return res.status(404).json({ status: 404, message: "Không tìm thấy đơn hàng" });
     }
-  } catch (error) {
-    console.log(error);
+
+    const formattedOrder = {
+      _id: order._id,
+      clientId: order.id_client,
+      state: order.state,
+      total_amount: order.total_amount,
+      order_time: order.order_time,
+      cancleOrder_time: order.cancleOrder_time,
+      completion_time: order.completion_time,
+      paypayment_method: order.payment_method,
+      products: order.products.map(product => ({
+        productId: product.productId,
+        productName: product.productId.product_name,
+        sizeId: product.sizeId,
+        sizeName: product.sizeId.name,
+        quantity: product.quantity,
+      })),
+      createdAt: order.createdAt,
+    };
+
+    res.status(200).json({
+      status: 200,
+      message: "Lấy chi tiết đơn hàng thành công",
+      data: formattedOrder,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: 500,
+      message: "Lỗi server",
+      error: err.message,
+    });
+  }
+});
+router.get('/get-list-orders', async (req, res) => {
+  try {
+    // Tìm tất cả các đơn hàng
+    const orders = await Order.find()
+      .populate({
+        path: 'products.productId',
+        model: 'product',
+        select: 'image product_name price'
+      })
+      .populate({
+        path: 'products.sizeId',
+        model: 'sizes',
+        select: 'name'
+      })
+      .sort({ createdAt: -1 }); // Sắp xếp từ mới nhất đến cũ nhất
+
+    // Định dạng dữ liệu trả về
+    const formattedOrders = orders.map(order => ({
+      _id: order._id,
+      clientId: order.id_client,
+      state: order.state,
+      total_amount: order.total_amount,
+      order_time: order.order_time,
+      payment_method: order.payment_method,
+      cancleOrder_time: order.cancleOrder_time,
+      completion_time: order.completion_time,
+      products: order.products.map(product => ({
+        productId: product.productId,
+        productName: product.productId?.product_name,
+        sizeId: product.sizeId,
+        sizeName: product.sizeId?.name,
+        quantity: product.quantity,
+        price: product.price,
+      })),
+      createdAt: order.createdAt,
+    }));
+
+    // Trả về kết quả
+    res.status(200).json({
+      status: 200,
+      message: "Lấy danh sách tất cả đơn hàng thành công",
+      data: formattedOrders,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: 500,
+      message: "Lỗi server",
+      error: err.message,
+    });
   }
 });
 
@@ -1862,7 +1946,7 @@ router.get('/revenue-statistics', async (req, res) => {
 
     // Lấy danh sách đơn hàng đã hoàn thành (state = 1) trong khoảng thời gian
     const completedOrders = await Order.find({
-      state: 1,
+      state: 2,
       createdAt: {
         $gte: start, // Ngày bắt đầu
         $lte: end    // Ngày kết thúc
@@ -1987,44 +2071,44 @@ router.get('/typeproduct/:id', async (req, res) => {
 });
 router.post('/submit-evaluation', async (req, res) => {
   try {
-      const { id_client, product, text, stars } = req.body;
-      if (!id_client || !product || !text || !stars) {
-          return res.status(400).json({ message: "All fields are required" });
-      }
+    const { id_client, product, text, stars } = req.body;
+    if (!id_client || !product || !text || !stars) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
 
-      // Create new Evaluate instance
-      const newEvaluate = new Evaluate({
-          id_client,
-          product,
-          text,
-          stars
-      });
+    // Create new Evaluate instance
+    const newEvaluate = new Evaluate({
+      id_client,
+      product,
+      text,
+      stars
+    });
 
-      // Save to database
-      await newEvaluate.save();
+    // Save to database
+    await newEvaluate.save();
 
-      res.status(201).json({ message: "Evaluation added successfully", evaluate: newEvaluate });
+    res.status(201).json({ message: "Evaluation added successfully", evaluate: newEvaluate });
   } catch (error) {
-      res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 });
 router.get('/get-evaluation/:productId', async (req, res) => {
   const { productId } = req.params;
 
   try {
-      // Tìm kiếm các đánh giá chứa productId trong mảng sản phẩm
-      const reviews = await Evaluate.find({ "product.productId": productId })
-          .populate('product.productId') // Nếu cần lấy thông tin chi tiết sản phẩm
-          .populate('product.sizeId');   // Nếu cần lấy thông tin chi tiết size
+    // Tìm kiếm các đánh giá chứa productId trong mảng sản phẩm
+    const reviews = await Evaluate.find({ "product.productId": productId })
+      .populate('product.productId') // Nếu cần lấy thông tin chi tiết sản phẩm
+      .populate('product.sizeId');   // Nếu cần lấy thông tin chi tiết size
 
-      if (reviews.length === 0) {
-          return res.status(404).json({ message: 'No reviews found for this product.' });
-      }
+    if (reviews.length === 0) {
+      return res.status(404).json({ message: 'No reviews found for this product.' });
+    }
 
-      return res.status(200).json(reviews);
+    return res.status(200).json(reviews);
   } catch (error) {
-      console.error('Error fetching reviews:', error);
-      return res.status(500).json({ message: 'Internal server error.' });
+    console.error('Error fetching reviews:', error);
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
