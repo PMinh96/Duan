@@ -6,6 +6,18 @@ const Order = new Scheme({
         type: String,
         required: true
     },
+    name_user:{
+        type: String,
+        required: true
+    },
+    phone_user:{
+        type: String,
+        required: true,
+    },
+    address_user:{
+        type: String,
+        required: true
+    },
     products: [
         {
             productId: { type: Scheme.Types.ObjectId, ref: 'product', required: true },
