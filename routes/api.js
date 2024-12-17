@@ -1613,10 +1613,10 @@ router.post('/add-order', async (req, res) => {
 
     // Kiểm tra dữ liệu đầu vào
     if (
-      !id_client || 
-      !payment_method || 
-      !products || 
-      products.length === 0 || 
+      !id_client ||
+      !payment_method ||
+      !products ||
+      products.length === 0 ||
       total_amount == null ||
       !name_user ||
       !phone_user ||
@@ -1711,6 +1711,9 @@ router.get('/orders/:orderId', async (req, res) => {
       cancleOrder_time: order.cancleOrder_time,
       completion_time: order.completion_time,
       paypayment_method: order.payment_method,
+      name_user: order.name_user,
+      phone_user: order.phone_user,
+      address_user: order.address_user,
       products: order.products.map(product => ({
         productId: product.productId,
         productName: product.productId.product_name,
@@ -1758,6 +1761,9 @@ router.get('/get-list-orders', async (req, res) => {
       state: order.state,
       total_amount: order.total_amount,
       order_time: order.order_time,
+      name_user: order.name_user,
+      phone_user: order.phone_user,
+      address_user: order.address_user,
       payment_method: order.payment_method,
       cancleOrder_time: order.cancleOrder_time,
       completion_time: order.completion_time,
@@ -1768,6 +1774,8 @@ router.get('/get-list-orders', async (req, res) => {
         sizeName: product.sizeId?.name,
         quantity: product.quantity,
         price: product.price,
+
+
       })),
       createdAt: order.createdAt,
     }));
@@ -1809,7 +1817,7 @@ router.put('/update-order/:id', async (req, res) => {
       });
     }
     order.state = state;
-    if(state === 1){
+    if (state === 1) {
       // Trừ số lượng size của sản phẩm
       for (const orderProduct of order.products) {
         const product = await Product.findById(orderProduct.productId);
@@ -1956,13 +1964,13 @@ router.get('/revenue-statistics', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    // Kiểm tra xem startDate và endDate có được cung cấp không
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        status: 400,
-        message: "Thiếu startDate hoặc endDate"
-      });
-    }
+    // // Kiểm tra xem startDate và endDate có được cung cấp không
+    // if (!startDate || !endDate) {
+    //   return res.status(400).json({
+    //     status: 400,
+    //     message: "Thiếu startDate hoặc endDate"
+    //   });
+    // }
 
     // Chuyển đổi startDate và endDate thành đối tượng Date
     const start = new Date(startDate);
@@ -1976,19 +1984,19 @@ router.get('/revenue-statistics', async (req, res) => {
       });
     }
 
-    // Lấy danh sách đơn hàng đã hoàn thành (state = 1) trong khoảng thời gian
+    // Tìm đơn hàng đã hoàn thành trong khoảng thời gian
     const completedOrders = await Order.find({
       state: 2,
       createdAt: {
-        $gte: start, // Ngày bắt đầu
-        $lte: end    // Ngày kết thúc
+        $gte: start,
+        $lte: end
       }
     });
 
     // Tính tổng doanh thu
     let totalRevenue = 0;
     completedOrders.forEach(order => {
-      totalRevenue += order.total_amount; // Giả sử trường total_amount tồn tại trong Order
+      totalRevenue += order.total_amount;
     });
 
     res.json({
@@ -1996,9 +2004,8 @@ router.get('/revenue-statistics', async (req, res) => {
       message: "Thống kê doanh thu thành công",
       data: {
         totalRevenue,
-        totalOrders: completedOrders.length, // Số lượng đơn hàng đã hoàn thành
-        startDate: startDate,
-        endDate: endDate
+        totalOrders: completedOrders.length,
+        orders: completedOrders,
       }
     });
   } catch (error) {

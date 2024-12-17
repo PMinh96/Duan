@@ -24,6 +24,7 @@ const Order = new Scheme({
             sizeId: { type: Scheme.Types.ObjectId, ref: 'sizes', required: true },
             quantity: { type: Number, required: true },
             price: { type: Number, required: true },
+            id_producttype:{type:Scheme.Types.ObjectId,ref:'typeproducts'},
         }
     ],
     state: {
